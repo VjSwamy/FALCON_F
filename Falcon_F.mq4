@@ -46,6 +46,9 @@ extern int     Slippage=3; // In Pips
 extern bool    IsECNbroker = false; // Is your broker an ECN
 extern bool    OnJournaling = true; // Add EA updates in the Journal Tab
 
+extern string  Header1="----------Trading Rules Variables -----------";
+extern int     predictor_period = 100;    //predictor period in minutes
+
 extern string  Header1_1="----------Trading Rules Variables Market Bull normal BUN-----------";
 extern bool    isTradeBUN = True;
 extern double  VolBasedSLMultiplierBUN=3; // Stop Loss Amount in units of Volatility
@@ -138,7 +141,7 @@ extern string  Header11="----------Volatility Measurement Settings-----------";
 extern int     atr_period=14;
 
 extern string  Header12="----------Max Orders-----------";
-extern int     MaxPositionsAllowed=1;
+extern int     MaxPositionsAllowed=10;
 
 extern string  Header13="----------Set Max Loss Limit-----------";
 extern bool    IsLossLimitActivated=False;
@@ -261,7 +264,7 @@ int start()
          //   Direction = -1; //set direction to -1 by default in order to achieve cross!
          OrderProfitToCSV(T_Num(MagicNumber));                        //write previous orders profit results for auto analysis in R
          MyMarketType = ReadMarketFromCSV(Symbol(), 15);              //read analytical output from the Decision Support System
-         AIPrediction = ReadPredictionFromAI(Symbol(),15);            //read predicted direction for the next trade
+         AIPrediction = ReadPredictionFromAI(Symbol(),predictor_period);            //read predicted direction for the next trade
          //adapting strategy parameters for specific market period MARKET_NONE
          if(MyMarketType == MARKET_NONE || AIPrediction == TRADE_NONE)
            {
