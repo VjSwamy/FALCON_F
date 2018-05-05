@@ -9,6 +9,7 @@
 #include <08_TerminalNumber.mqh>
 #include <096_ReadMarketTypeFromCSV.mqh>
 #include <12_ReadPredictionFromAI.mqh>
+#include <10_isNewBar.mqh>
 
 #property copyright "Copyright 2015, Black Algo Technologies Pte Ltd"
 #property copyright "Copyright 2018, Vladimir Zhbanko"
@@ -257,6 +258,7 @@ int deinit()
 int start()
   {
   
+  if(!isNewBar())return(0);
 //----------Order management through R - to avoid slow down the system only enable with external parameters
    if(R_Management)
      {
