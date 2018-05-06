@@ -7,9 +7,9 @@
 #include <02_OrderProfitToCSV.mqh>
 #include <03_ReadCommandFromCSV.mqh>
 #include <08_TerminalNumber.mqh>
-#include <096_ReadMarketTypeFromCSV.mqh>
-#include <12_ReadPredictionFromAI.mqh>
+//#include <096_ReadMarketTypeFromCSV.mqh>
 #include <10_isNewBar.mqh>
+#include <12_ReadPredictionFromAI.mqh>
 
 #property copyright "Copyright 2015, Black Algo Technologies Pte Ltd"
 #property copyright "Copyright 2018, Vladimir Zhbanko"
@@ -21,19 +21,11 @@
 
 Falcon F: 
 - Adding specific functions to manage Decision Support System
-- Adding market recognition interface using Deep Learning
-# Market Periods
-# 1. Bull normal BUN
-# 2. Bull volatile BUV
-# 3. Bear normal BEN
-# 4. Bear volatile BEV
-# 5. Sideways quiet RAN
-# 6. Sideways volatile RAV
 - Adding trade direction prediction from Decision Support System
 # Trading directions:
 # 1. Long  BU
 # 2. Short BE
-
+- Trade is only possible when 3 time period are predicted to the same direction
 */
 
 //+------------------------------------------------------------------+
@@ -48,37 +40,9 @@ extern bool    IsECNbroker = false; // Is your broker an ECN
 extern bool    OnJournaling = true; // Add EA updates in the Journal Tab
 
 extern string  Header1="----------Trading Rules Variables -----------";
-extern int     predictor_period = 100;    //predictor period in minutes
-
-extern string  Header1_1="----------Trading Rules Variables Market Bull normal BUN-----------";
-extern bool    isTradeBUN = True;
-extern double  VolBasedSLMultiplierBUN=3; // Stop Loss Amount in units of Volatility
-extern double  VolBasedTPMultiplierBUN=4; // Take Profit Amount in units of Volatility
-
-extern string  Header1_2="----------Trading Rules Variables Market Bull volatile BUV-----------";
-extern bool    isTradeBUV = True;
-extern double  VolBasedSLMultiplierBUV=4; // Stop Loss Amount in units of Volatility
-extern double  VolBasedTPMultiplierBUV=6; // Take Profit Amount in units of Volatility
-
-extern string  Header1_3="----------Trading Rules Variables Market Bear normal BEN-----------";
-extern bool    isTradeBEN = True;
-extern double  VolBasedSLMultiplierBEN=3; // Stop Loss Amount in units of Volatility
-extern double  VolBasedTPMultiplierBEN=4; // Take Profit Amount in units of Volatility
-
-extern string  Header1_4="----------Trading Rules Variables Market Bear volatile BEV-----------";
-extern bool    isTradeBEV = True;
-extern double  VolBasedSLMultiplierBEV=4; // Stop Loss Amount in units of Volatility
-extern double  VolBasedTPMultiplierBEV=6; // Take Profit Amount in units of Volatility
-
-extern string  Header1_5="----------Trading Rules Variables Market Sideways quiet RAN-----------";
-extern bool    isTradeRAN = False;
-extern double  VolBasedSLMultiplierRAN=3; // Stop Loss Amount in units of Volatility
-extern double  VolBasedTPMultiplierRAN=4; // Take Profit Amount in units of Volatility
-
-extern string  Header1_6="----------Trading Rules Variables Market Sideways volatile RAV-----------";
-extern bool    isTradeRAV = False;
-extern double  VolBasedSLMultiplierRAV=4; // Stop Loss Amount in units of Volatility
-extern double  VolBasedTPMultiplierRAV=6; // Take Profit Amount in units of Volatility
+extern int     predictor_periodM1     = 1;    //predictor period in minutes
+extern int     predictor_periodM15    = 15;    //predictor period in minutes
+extern int     predictor_periodH1     = 60;    //predictor period in minutes
 
 extern string  Header2="----------Position Sizing Settings-----------";
 extern string  Lot_explanation="If IsSizingOn = true, Lots variable will be ignored";
@@ -91,12 +55,12 @@ extern string  Header3="----------TP & SL Settings-----------";
 extern bool    UseFixedStopLoss=True; // If this is false and IsSizingOn = True, sizing algo will not be able to calculate correct lot size. 
 extern double  FixedStopLoss=0; // Hard Stop in Pips. Will be overridden if vol-based SL is true 
 extern bool    IsVolatilityStopOn=True;
-extern double  VolBasedSLMultiplier=6; // Stop Loss Amount in units of Volatility
+extern double  VolBasedSLMultiplier=3; // Stop Loss Amount in units of Volatility
 
 extern bool    UseFixedTakeProfit=True;
 extern double  FixedTakeProfit=0; // Hard Take Profit in Pips. Will be overridden if vol-based TP is true 
 extern bool    IsVolatilityTakeProfitOn=True;
-extern double  VolBasedTPMultiplier=6; // Take Profit Amount in units of Volatility
+extern double  VolBasedTPMultiplier=4; // Take Profit Amount in units of Volatility
 
 extern string  Header4="----------Hidden TP & SL Settings-----------";
 
@@ -142,7 +106,7 @@ extern string  Header11="----------Volatility Measurement Settings-----------";
 extern int     atr_period=14;
 
 extern string  Header12="----------Max Orders-----------";
-extern int     MaxPositionsAllowed=10;
+extern int     MaxPositionsAllowed=5;
 
 extern string  Header13="----------Set Max Loss Limit-----------";
 extern bool    IsLossLimitActivated=False;
@@ -185,7 +149,9 @@ bool     TradeAllowed = true;
 bool FlagBuy, FlagSell;       //boolean flags to limit direction of trades
 datetime ReferenceTime;       //used for order history
 int     MyMarketType;         //used to recieve market status from AI
-int     AIPrediction;         //used to recieve prediction from AI
+int     AIPredictionM1;         //used to recieve prediction from AI
+int     AIPredictionM15;         //used to recieve prediction from AI
+int     AIPredictionH1;         //used to recieve prediction from AI
 
 //+------------------------------------------------------------------+
 //| End of Setup                                          
@@ -265,10 +231,16 @@ int start()
          //code that only executed once a bar
          //   Direction = -1; //set direction to -1 by default in order to achieve cross!
          OrderProfitToCSV(T_Num(MagicNumber));                        //write previous orders profit results for auto analysis in R
-         MyMarketType = ReadMarketFromCSV(Symbol(), 15);              //read analytical output from the Decision Support System
-         AIPrediction = ReadPredictionFromAI(Symbol(),predictor_period);            //read predicted direction for the next trade
-         //adapting strategy parameters for specific market period MARKET_NONE
-         if(MyMarketType == MARKET_NONE || AIPrediction == TRADE_NONE)
+         //MyMarketType = ReadMarketFromCSV(Symbol(), 15);            //read analytical output from the Decision Support System
+         //predicted using last 100 min or 1.66hours
+         AIPredictionM1 = ReadPredictionFromAI(Symbol(),predictor_periodM1);            //read predicted direction for the next trade
+         //predicted using last 1500 min or 25hours
+         AIPredictionM15 = ReadPredictionFromAI(Symbol(),predictor_periodM15);          //read predicted direction for the next trade
+         //predicted using last 6000 min or 100hours
+         AIPredictionH1 = ReadPredictionFromAI(Symbol(),predictor_periodH1);            //read predicted direction for the next trade
+         
+         //do not trade when something is wrong...
+         if(AIPredictionM1 == TRADE_NONE || AIPredictionM15 == TRADE_NONE || AIPredictionH1 == TRADE_NONE)
            {
              FlagBuy = False;
              FlagSell= False;
@@ -276,70 +248,19 @@ int start()
            
       
          //adapting strategy parameters for specific market periods
-         if(MyMarketType == MARKET_BUN)
+         if(AIPredictionM1 == TRADE_BU && AIPredictionM15 == TRADE_BU && AIPredictionH1 == TRADE_BU)
            {
-             //generic rules of the trading period
-             TradeAllowed = isTradeBUN;
              FlagBuy = True;
              FlagSell= False;
-             //assign new trading strategy parameter       
-             VolBasedSLMultiplier = VolBasedSLMultiplierBUN;
-             VolBasedTPMultiplier = VolBasedTPMultiplierBUN;
            }
-      
-         //adapting strategy parameters for specific market period MARKET_BULLVOL
-         if(MyMarketType == MARKET_BUV)
+           
+         //adapting strategy parameters for specific market periods
+         if(AIPredictionM1 == TRADE_BE && AIPredictionM15 == TRADE_BE && AIPredictionH1 == TRADE_BE)
            {
-             //generic rules of the trading period
-             TradeAllowed = isTradeBUV;
-             FlagBuy = True;
-             FlagSell= False;
-             //assign new trading strategy parameter       
-             VolBasedSLMultiplier = VolBasedSLMultiplierBUV;
-             VolBasedTPMultiplier = VolBasedTPMultiplierBUV;
-           }
-      
-         //adapting strategy parameters for specific market period MARKET_BEARNOR
-         if(MyMarketType == MARKET_BEN)
-           {
-             //generic rules of the trading period
-             TradeAllowed = isTradeBEN;
              FlagBuy = False;
              FlagSell= True;
-             //assign new trading strategy parameter       
-             VolBasedSLMultiplier = VolBasedSLMultiplierBEN;
-             VolBasedTPMultiplier = VolBasedTPMultiplierBEN;
-           }//adapting strategy parameters for specific market period MARKET_BEARVOL
-         if(MyMarketType == MARKET_BEV)
-           {
-             //generic rules of the trading period
-             TradeAllowed = isTradeBEV;
-             FlagBuy = False;
-             FlagSell= True;
-             //assign new trading strategy parameter       
-             VolBasedSLMultiplier = VolBasedSLMultiplierBEV;
-             VolBasedTPMultiplier = VolBasedTPMultiplierBEV;
-           }//adapting strategy parameters for specific market period MARKET_RANGENOR
-         if(MyMarketType == MARKET_RAN)
-           {
-             //generic rules of the trading period
-             TradeAllowed = isTradeRAN;
-             FlagBuy = True;
-             FlagSell= True;
-             //assign new trading strategy parameter       
-             VolBasedSLMultiplier = VolBasedSLMultiplierRAN;
-             VolBasedTPMultiplier = VolBasedTPMultiplierRAN;
-           }//adapting strategy parameters for specific market period MARKET_RANGEVOL
-         if(MyMarketType == MARKET_RAV)
-           {
-             //generic rules of the trading period
-             TradeAllowed = isTradeRAV;
-             FlagBuy = True;
-             FlagSell= True;
-             //assign new trading strategy parameter       
-             VolBasedSLMultiplier = VolBasedSLMultiplierRAV;
-             VolBasedTPMultiplier = VolBasedTPMultiplierRAV;
            }
+             
          
          TradeAllowed = ReadCommandFromCSV(MagicNumber);              //read command from R to make sure trading is allowed
 
@@ -353,14 +274,14 @@ int start()
      
 //----------Entry & Exit Variables-----------
    //Entry variables:
-   if(AIPrediction == TRADE_BU) CrossTriggered1=1;
-   if(AIPrediction == TRADE_BE) CrossTriggered1=2;
+   if(AIPredictionM1 == TRADE_BU) CrossTriggered1=1;
+   if(AIPredictionM1 == TRADE_BE) CrossTriggered1=2;
    
    //Exit variables:
    //1. Predicted to Buy in Buy market --> close the sell trade
-   if(AIPrediction == TRADE_BU && FlagBuy == True) CrossTriggered3=2;
-   //2. Predicted to Sell in Sell market --> close the sell trade
-   if(AIPrediction == TRADE_BE && FlagSell  == True) CrossTriggered2=1;
+   if(AIPredictionM1 == TRADE_BU && FlagBuy == True) CrossTriggered2=2;
+   //2. Predicted to Sell in Sell market --> close the buy trade
+   if(AIPredictionM1 == TRADE_BE && FlagSell  == True) CrossTriggered2=1;
    
 
 //----------TP, SL, Breakeven and Trailing Stops Variables-----------
@@ -408,7 +329,7 @@ int start()
 
    // TDL 2: Setting up Exit rules. Modify the ExitSignal() function to suit your needs.
 
-   if(CountPosOrders(MagicNumber,OP_BUY)>=1 && ExitSignal(CrossTriggered3)==2)
+   if(CountPosOrders(MagicNumber,OP_BUY)>=1 && ExitSignal(CrossTriggered2)==2)
      { // Close Long Positions
       CloseOrderPosition(OP_BUY, OnJournaling, MagicNumber, Slippage, P, RetryInterval); 
 
