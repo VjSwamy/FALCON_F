@@ -42,8 +42,8 @@ extern bool    OnJournaling = true; // Add EA updates in the Journal Tab
 extern string  Header1="----------Trading Rules Variables -----------";
 extern int     TimeMaxHold            = 100;  //max order close time in minutes
 extern int     predictor_periodM1     = 1;    //predictor period in minutes
-extern int     predictor_periodM15    = 15;    //predictor period in minutes
-extern int     predictor_periodH1     = 60;    //predictor period in minutes
+extern int     predictor_periodM15    = 15;   //predictor period in minutes
+extern int     predictor_periodH1     = 60;   //predictor period in minutes
 
 extern string  Header2="----------Position Sizing Settings-----------";
 extern string  Lot_explanation="If IsSizingOn = true, Lots variable will be ignored";
@@ -280,9 +280,9 @@ int start()
    
    //Exit variables:
    //1. Predicted to Buy in Buy market --> close the sell trade
-   if(AIPredictionM1 == TRADE_BU && FlagBuy == True) CrossTriggered2=1;
+   if(AIPredictionM1 == TRADE_BU && FlagBuy == True) CrossTriggered2=1;   //--> this will close sell trade when time of the holding order is expired
    //2. Predicted to Sell in Sell market --> close the buy trade
-   if(AIPredictionM1 == TRADE_BE && FlagSell  == True) CrossTriggered2=2;
+   if(AIPredictionM1 == TRADE_BE && FlagSell  == True) CrossTriggered2=2; //--> this will close buy trade when time of the holding order is expired
    
 
 //----------TP, SL, Breakeven and Trailing Stops Variables-----------
@@ -330,12 +330,12 @@ int start()
 
    // TDL 2: Setting up Exit rules. Modify the ExitSignal() function to suit your needs.
 
-   if(CountPosOrders(MagicNumber,OP_BUY)>=1 && ExitSignalOnTimer(CrossTriggered2, MagicNumber, TimeMaxHold)==1)
+   if(CountPosOrders(MagicNumber,OP_BUY)>=1 && ExitSignalOnTimer(CrossTriggered2, MagicNumber, TimeMaxHold)==2)
      { // Close Long Positions
       CloseOrderPosition(OP_BUY, OnJournaling, MagicNumber, Slippage, P, RetryInterval); 
 
      }
-   if(CountPosOrders(MagicNumber,OP_SELL)>=1 && ExitSignalOnTimer(CrossTriggered2, MagicNumber, TimeMaxHold)==2)
+   if(CountPosOrders(MagicNumber,OP_SELL)>=1 && ExitSignalOnTimer(CrossTriggered2, MagicNumber, TimeMaxHold)==1)
      { // Close Short Positions
       CloseOrderPosition(OP_SELL, OnJournaling, MagicNumber, Slippage, P, RetryInterval);
      }
@@ -490,7 +490,7 @@ int ExitSignalOnTimer(int CrossOccurred, int Magic, int MaxOrderCloseTimer)
          if(OrderSelect(i,SELECT_BY_POS,MODE_TRADES)==true &&
                          OrderSymbol()==Symbol() &&
                          OrderMagicNumber()==Magic && 
-                         OrderType()==OP_BUY) 
+                         OrderType()==OP_SELL) 
                          //Calculating order current time in minutes, used for closing orders
                          CurrOrderHoldTime = int((TimeCurrent() - OrderOpenTime())/60);
          if(CurrOrderHoldTime >= MaxOrderCloseTimer )  ExitOutput=1;
@@ -507,7 +507,7 @@ int ExitSignalOnTimer(int CrossOccurred, int Magic, int MaxOrderCloseTimer)
          if(OrderSelect(i,SELECT_BY_POS,MODE_TRADES)==true &&
                          OrderSymbol()==Symbol() &&
                          OrderMagicNumber()==Magic && 
-                         OrderType() == OP_SELL) 
+                         OrderType() == OP_BUY) 
                          //Calculating order current time in minutes, used for closing orders
                          CurrOrderHoldTime = int((TimeCurrent() - OrderOpenTime())/60);
          if(CurrOrderHoldTime >= MaxOrderCloseTimer )  ExitOutput=2;
