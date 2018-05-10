@@ -248,7 +248,6 @@ int start()
              FlagBuy = False;
              FlagSell= False;
            }
-           
       
          //adapting strategy parameters for specific market periods
          if(AIPredictionM1 == TRADE_BU && AIPredictionM15 == TRADE_BU && AIPredictionH1 == TRADE_BU)
@@ -277,8 +276,8 @@ int start()
      
 //----------Entry & Exit Variables-----------
    //Entry variables:
-   if(AIPredictionM1 == TRADE_BU) CrossTriggered1=1;
-   if(AIPredictionM1 == TRADE_BE) CrossTriggered1=2;
+   if(AIPredictionM1 == TRADE_BU && AIPredictionM15 == TRADE_BU) CrossTriggered1=1;
+   if(AIPredictionM1 == TRADE_BE && AIPredictionM15 == TRADE_BE) CrossTriggered1=2;
    
    //Exit variables:
    //1. Predicted to Buy in Buy market --> close the sell trade
