@@ -229,6 +229,8 @@ int start()
 //----------Order management through R - to avoid slow down the system only enable with external parameters
    if(R_Management)
      {
+         FlagBuy = False;
+         FlagSell = False;
          //code that only executed once a bar
          //   Direction = -1; //set direction to -1 by default in order to achieve cross!
          OrderProfitToCSV(T_Num(MagicNumber));                        //write previous orders profit results for auto analysis in R
