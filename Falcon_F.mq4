@@ -229,8 +229,7 @@ int start()
 //----------Order management through R - to avoid slow down the system only enable with external parameters
    if(R_Management)
      {
-         FlagBuy = False;
-         FlagSell = False;
+         
          //code that only executed once a bar
          //   Direction = -1; //set direction to -1 by default in order to achieve cross!
          OrderProfitToCSV(T_Num(MagicNumber));                        //write previous orders profit results for auto analysis in R
@@ -250,18 +249,23 @@ int start()
            }
       
          //adapting strategy parameters for specific market periods
-         if(AIPredictionM1 == TRADE_BU && AIPredictionM15 == TRADE_BU && AIPredictionH1 == TRADE_BU)
+         else if(AIPredictionM1 == TRADE_BU && AIPredictionM15 == TRADE_BU && AIPredictionH1 == TRADE_BU)
            {
              FlagBuy = True;
              FlagSell= False;
            }
            
          //adapting strategy parameters for specific market periods
-         if(AIPredictionM1 == TRADE_BE && AIPredictionM15 == TRADE_BE && AIPredictionH1 == TRADE_BE)
+         else if(AIPredictionM1 == TRADE_BE && AIPredictionM15 == TRADE_BE && AIPredictionH1 == TRADE_BE)
            {
              FlagBuy = False;
              FlagSell= True;
            }
+          else
+            {
+               FlagBuy = False;
+               FlagSell = False;
+            } 
              
          
          TradeAllowed = ReadCommandFromCSV(MagicNumber);              //read command from R to make sure trading is allowed
