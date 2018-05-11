@@ -10,6 +10,7 @@
 //#include <096_ReadMarketTypeFromCSV.mqh>
 #include <10_isNewBar.mqh>
 #include <12_ReadPredictionFromAI.mqh>
+#include <14_ReadPriceChangePredictionFromAI.mqh>
 
 #property copyright "Copyright 2015, Black Algo Technologies Pte Ltd"
 #property copyright "Copyright 2018, Vladimir Zhbanko"
@@ -153,6 +154,7 @@ int     MyMarketType;         //used to recieve market status from AI
 int     AIPredictionM1;         //used to recieve prediction from AI
 int     AIPredictionM15;         //used to recieve prediction from AI
 int     AIPredictionH1;         //used to recieve prediction from AI
+double    AIPriceChangePredictionM1, AIPriceChangePredictionM15, AIPriceChangePredictionH1;
 
 //+------------------------------------------------------------------+
 //| End of Setup                                          
@@ -236,10 +238,13 @@ int start()
          //MyMarketType = ReadMarketFromCSV(Symbol(), 15);            //read analytical output from the Decision Support System
          //predicted using last 100 min or 1.66hours
          AIPredictionM1 = ReadPredictionFromAI(Symbol(),predictor_periodM1);            //read predicted direction for the next trade
+         AIPriceChangePredictionM1 = ReadPriceChangePredictionFromAI(Symbol(),predictor_periodM1); //price change prediction
          //predicted using last 1500 min or 25hours
          AIPredictionM15 = ReadPredictionFromAI(Symbol(),predictor_periodM15);          //read predicted direction for the next trade
+         AIPriceChangePredictionM15 = ReadPriceChangePredictionFromAI(Symbol(),predictor_periodM15); //price change prediction
          //predicted using last 6000 min or 100hours
          AIPredictionH1 = ReadPredictionFromAI(Symbol(),predictor_periodH1);            //read predicted direction for the next trade
+         
          
          //do not trade when something is wrong...
          if(AIPredictionM1 == TRADE_NONE || AIPredictionM15 == TRADE_NONE || AIPredictionH1 == TRADE_NONE)
@@ -280,8 +285,8 @@ int start()
      
 //----------Entry & Exit Variables-----------
    //Entry variables:
-   if(AIPredictionM1 == TRADE_BU && AIPredictionM15 == TRADE_BU) CrossTriggered1=1;
-   if(AIPredictionM1 == TRADE_BE && AIPredictionM15 == TRADE_BE) CrossTriggered1=2;
+   if(AIPredictionM1 == TRADE_BU && AIPriceChangePredictionM1 > 20) CrossTriggered1=1;
+   if(AIPredictionM1 == TRADE_BE && AIPriceChangePredictionM1 < -20) CrossTriggered1=2;
    
    //Exit variables:
    //1. Predicted to Buy in Buy market --> close the sell trade
@@ -307,6 +312,7 @@ int start()
         }  else {
       Take=VolBasedTakeProfit(IsVolatilityTakeProfitOn,FixedTakeProfit,myATR,VolBasedTPMultiplier,P);
      }
+
 
    if(UseBreakevenStops) BreakevenStopAll(OnJournaling,RetryInterval,BreakevenBuffer,MagicNumber,P);
    if(UseTrailingStops) TrailingStopAll(OnJournaling,TrailingStopDistance,TrailingStopBuffer,RetryInterval,MagicNumber,P);
