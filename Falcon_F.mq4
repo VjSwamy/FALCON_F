@@ -56,6 +56,8 @@ extern bool    OnJournaling = true; // Add EA updates in the Journal Tab
 extern string  Header1="----------Trading Rules Variables -----------";
 extern int     TimeMaxHold            = 1125;  //max order close time in minutes
 extern int     entryTriggerM15        = 20;   //trade will start when predicted value will exceed this threshold
+extern bool    usePredictedTP         = True; //system will use predicted TP amount
+extern bool    usePredictedSL         = True; //system will use predicted SL amount as 3/4 of predicted TP
 extern int     predictor_periodM1     = 1;    //predictor period in minutes
 extern int     predictor_periodM15    = 15;   //predictor period in minutes
 extern int     predictor_periodH1     = 60;   //predictor period in minutes
@@ -166,7 +168,7 @@ bool FlagBuy, FlagSell;       //boolean flags to limit direction of trades
 datetime ReferenceTime;       //used for order history
 int     MyMarketType;         //used to recieve market status from AI
 //used to recieve prediction from AI 
-int     AIPredictionM1, AIPredictionM15; AIPredictionH1;         
+int     AIPredictionM1, AIPredictionM15, AIPredictionH1;         
 double    AIPriceChangePredictionM1, AIPriceChangePredictionM15, AIPriceChangePredictionH1;
 
 //+------------------------------------------------------------------+
@@ -313,16 +315,16 @@ int start()
 
    myATR=iATR(NULL,Period(),atr_period,1);
 
-   if(UseFixedStopLoss==False) 
+   if(UseFixedStopLoss==False || usePredictedSL == True) 
      {
-      Stop=0;
+      Stop=0.75*MathAbs(AIPriceChangePredictionM15);
         }  else {
       Stop=VolBasedStopLoss(IsVolatilityStopOn,FixedStopLoss,myATR,VolBasedSLMultiplier,P);
      }
 
-   if(UseFixedTakeProfit==False) 
+   if(UseFixedTakeProfit==False || usePredictedTP == True) 
      {
-      Take=0;
+      Take=MathAbs(AIPriceChangePredictionM15);
         }  else {
       Take=VolBasedTakeProfit(IsVolatilityTakeProfitOn,FixedTakeProfit,myATR,VolBasedTPMultiplier,P);
      }
