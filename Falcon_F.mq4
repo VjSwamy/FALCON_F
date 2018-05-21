@@ -22,11 +22,24 @@
 
 Falcon F: 
 - Adding specific functions to manage Decision Support System
-- Adding trade direction prediction from Decision Support System
+- Adding trade direction and asset price change prediction from Decision Support System
 # Trading directions:
 # 1. Long  BU
 # 2. Short BE
-- Trade is only possible when 3 time period are predicted to the same direction
+# Predicted changes of price:
+# --> in absolute values on M1x75, M15x75, H1x100
+# Trade Entry is triggered when:
+# A. H1 Direction is set for Long Term Trend
+# B. M15 Change is in the same direction and having sufficient target > 20 pips 
+# C. M1 Direction is predicted for the same side
+# Money Management
+# A. M15 Predicted Change is defining Take Profit Level
+# B. Stop loss is 3/4 of the Predicted Change
+# C. Only one order can be opened at the time
+# Trade Exit is triggered when:
+# A. Time of the order is reached value is 1125 min
+# B. Time Exit is renewed when Exact Same Trading Entry is Suggested
+# C. When Opposite direction order is triggered
 */
 
 //+------------------------------------------------------------------+
@@ -41,7 +54,8 @@ extern bool    IsECNbroker = false; // Is your broker an ECN
 extern bool    OnJournaling = true; // Add EA updates in the Journal Tab
 
 extern string  Header1="----------Trading Rules Variables -----------";
-extern int     TimeMaxHold            = 100;  //max order close time in minutes
+extern int     TimeMaxHold            = 1125;  //max order close time in minutes
+extern int     entryTriggerM15        = 20;   //trade will start when predicted value will exceed this threshold
 extern int     predictor_periodM1     = 1;    //predictor period in minutes
 extern int     predictor_periodM15    = 15;   //predictor period in minutes
 extern int     predictor_periodH1     = 60;   //predictor period in minutes
@@ -108,7 +122,7 @@ extern string  Header11="----------Volatility Measurement Settings-----------";
 extern int     atr_period=14;
 
 extern string  Header12="----------Max Orders-----------";
-extern int     MaxPositionsAllowed=5;
+extern int     MaxPositionsAllowed=1;
 
 extern string  Header13="----------Set Max Loss Limit-----------";
 extern bool    IsLossLimitActivated=False;
@@ -151,9 +165,8 @@ bool     TradeAllowed = true;
 bool FlagBuy, FlagSell;       //boolean flags to limit direction of trades
 datetime ReferenceTime;       //used for order history
 int     MyMarketType;         //used to recieve market status from AI
-int     AIPredictionM1;         //used to recieve prediction from AI
-int     AIPredictionM15;         //used to recieve prediction from AI
-int     AIPredictionH1;         //used to recieve prediction from AI
+//used to recieve prediction from AI 
+int     AIPredictionM1, AIPredictionM15; AIPredictionH1;         
 double    AIPriceChangePredictionM1, AIPriceChangePredictionM15, AIPriceChangePredictionH1;
 
 //+------------------------------------------------------------------+
@@ -233,18 +246,19 @@ int start()
      {
          
          //code that only executed once a bar
-         //   Direction = -1; //set direction to -1 by default in order to achieve cross!
          OrderProfitToCSV(T_Num(MagicNumber));                        //write previous orders profit results for auto analysis in R
          //MyMarketType = ReadMarketFromCSV(Symbol(), 15);            //read analytical output from the Decision Support System
-         //predicted using last 100 min or 1.66hours
+         //predicted using M1 Timeframe
          AIPredictionM1 = ReadPredictionFromAI(Symbol(),predictor_periodM1);            //read predicted direction for the next trade
          AIPriceChangePredictionM1 = ReadPriceChangePredictionFromAI(Symbol(),predictor_periodM1); //price change prediction
-         //predicted using last 1500 min or 25hours
+         
+         //predicted using M15 Timeframe
          AIPredictionM15 = ReadPredictionFromAI(Symbol(),predictor_periodM15);          //read predicted direction for the next trade
          AIPriceChangePredictionM15 = ReadPriceChangePredictionFromAI(Symbol(),predictor_periodM15); //price change prediction
-         //predicted using last 6000 min or 100hours
-         AIPredictionH1 = ReadPredictionFromAI(Symbol(),predictor_periodH1);            //read predicted direction for the next trade
          
+         //predicted using H1 Timeframe
+         AIPredictionH1 = ReadPredictionFromAI(Symbol(),predictor_periodH1);            //read predicted direction for the next trade
+         AIPriceChangePredictionH1 = ReadPriceChangePredictionFromAI(Symbol(),predictor_periodH1); //price change prediction
          
          //do not trade when something is wrong...
          if(AIPredictionM1 == TRADE_NONE || AIPredictionM15 == TRADE_NONE || AIPredictionH1 == TRADE_NONE)
@@ -253,15 +267,15 @@ int start()
              FlagSell= False;
            }
       
-         //adapting strategy parameters for specific market periods
-         else if(AIPredictionM1 == TRADE_BU && AIPredictionM15 == TRADE_BU && AIPredictionH1 == TRADE_BU)
+         //Specifying Buy Conditions
+         else if(AIPredictionM1 == TRADE_BU && AIPriceChangePredictionM15 > entryTriggerM15 && AIPredictionH1 == TRADE_BU)
            {
              FlagBuy = True;
              FlagSell= False;
            }
            
-         //adapting strategy parameters for specific market periods
-         else if(AIPredictionM1 == TRADE_BE && AIPredictionM15 == TRADE_BE && AIPredictionH1 == TRADE_BE)
+         //Specifying Sell Conditions
+         else if(AIPredictionM1 == TRADE_BE && AIPriceChangePredictionM15 < -1*entryTriggerM15 && AIPredictionH1 == TRADE_BE)
            {
              FlagBuy = False;
              FlagSell= True;
@@ -285,14 +299,14 @@ int start()
      
 //----------Entry & Exit Variables-----------
    //Entry variables:
-   if(AIPredictionM1 == TRADE_BU && AIPriceChangePredictionM1 > 20) CrossTriggered1=1;
-   if(AIPredictionM1 == TRADE_BE && AIPriceChangePredictionM1 < -20) CrossTriggered1=2;
+   if(FlagBuy) CrossTriggered1=1;
+   if(FlagSell) CrossTriggered1=2;
    
    //Exit variables:
-   //1. Predicted to Buy in Buy market --> close the sell trade
-   if(AIPredictionM1 == TRADE_BU && FlagBuy == True) CrossTriggered2=1;   //--> this will close sell trade when time of the holding order is expired
-   //2. Predicted to Sell in Sell market --> close the buy trade
-   if(AIPredictionM1 == TRADE_BE && FlagSell  == True) CrossTriggered2=2; //--> this will close buy trade when time of the holding order is expired
+   //1. Predicted to Buy --> close the sell trade
+   if(FlagBuy == True) CrossTriggered2=1;   //--> this will close sell trade when time of the holding order is expired
+   //2. Predicted to Sell --> close the buy trade
+   if(FlagSell  == True) CrossTriggered2=2; //--> this will close buy trade when time of the holding order is expired
    
 
 //----------TP, SL, Breakeven and Trailing Stops Variables-----------
