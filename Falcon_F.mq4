@@ -307,10 +307,12 @@ int start()
    if(FlagSell) CrossTriggered1=2;
    
    //Exit variables:
+   CrossTriggered2=1;   //--> this will close sell trade when time of the holding order is expired
+   CrossTriggered2=2;   //--> this will close buy trade when time of the holding order is expired
    //1. Prediction is worse than earlier estimated --> close the sell trade after order hold expiration
-   if(AIPriceChangePredictionM15 > -1*entryTriggerM15) CrossTriggered2=1;   //--> this will close sell trade when time of the holding order is expired
+   //if(AIPriceChangePredictionM15 > -1*entryTriggerM15) CrossTriggered2=1;   //--> this will close sell trade when time of the holding order is expired
    //2. Prediction is worse than earlier estimated --> close the buy trade
-   if(AIPriceChangePredictionM15 < entryTriggerM15) CrossTriggered2=2; //--> this will close buy trade when time of the holding order is expired
+   //if(AIPriceChangePredictionM15 < entryTriggerM15) CrossTriggered2=2; //--> this will close buy trade when time of the holding order is expired
  
 
 //----------TP, SL, Breakeven and Trailing Stops Variables-----------
