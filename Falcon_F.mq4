@@ -55,7 +55,9 @@ extern bool    OnJournaling = true; // Add EA updates in the Journal Tab
 
 extern string  Header1="----------Trading Rules Variables -----------";
 extern int     TimeMaxHold            = 1125;  //max order close time in minutes
-extern int     entryTriggerM15        = 20;   //trade will start when predicted value will exceed this threshold
+extern int     entryTriggerM15        = 50;   //trade will start when predicted value will exceed this threshold
+extern double  stopLossFactor         = 0.75; //SL factor from 0.75 up to 2 multiplied by predicted TP
+extern double  takeProfitFactor       = 1;    //TP factor from 0.25 to 1 multiplied by predicted TP
 extern bool    usePredictedTP         = True; //system will use predicted TP amount
 extern bool    usePredictedSL         = True; //system will use predicted SL amount as 3/4 of predicted TP
 extern int     predictor_periodM1     = 1;    //predictor period in minutes
@@ -305,11 +307,11 @@ int start()
    if(FlagSell) CrossTriggered1=2;
    
    //Exit variables:
-   //1. Predicted to Buy --> close the sell trade
-   if(FlagBuy == True) CrossTriggered2=1;   //--> this will close sell trade when time of the holding order is expired
-   //2. Predicted to Sell --> close the buy trade
-   if(FlagSell  == True) CrossTriggered2=2; //--> this will close buy trade when time of the holding order is expired
-   
+   //1. Prediction is worse than earlier estimated --> close the sell trade after order hold expiration
+   if(AIPriceChangePredictionM15 > -1*entryTriggerM15) CrossTriggered2=1;   //--> this will close sell trade when time of the holding order is expired
+   //2. Prediction is worse than earlier estimated --> close the buy trade
+   if(AIPriceChangePredictionM15 < entryTriggerM15) CrossTriggered2=2; //--> this will close buy trade when time of the holding order is expired
+ 
 
 //----------TP, SL, Breakeven and Trailing Stops Variables-----------
 
@@ -317,14 +319,14 @@ int start()
 
    if(UseFixedStopLoss==False || usePredictedSL == True) 
      {
-      Stop=0.75*MathAbs(AIPriceChangePredictionM15);
+      Stop=stopLossFactor*MathAbs(AIPriceChangePredictionM15);
         }  else {
       Stop=VolBasedStopLoss(IsVolatilityStopOn,FixedStopLoss,myATR,VolBasedSLMultiplier,P);
      }
 
    if(UseFixedTakeProfit==False || usePredictedTP == True) 
      {
-      Take=MathAbs(AIPriceChangePredictionM15);
+      Take=takeProfitFactor*MathAbs(AIPriceChangePredictionM15);
         }  else {
       Take=VolBasedTakeProfit(IsVolatilityTakeProfitOn,FixedTakeProfit,myATR,VolBasedTPMultiplier,P);
      }
