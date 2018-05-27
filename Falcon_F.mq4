@@ -307,6 +307,8 @@ int start()
    if(FlagSell) CrossTriggered1=2;
    
    //Exit variables:
+    /* Using timer to close trades
+    
     //1. Predicted to Buy --> close the sell trade but wait until the order minimum holding time is expired
          //idea is also to avoid closing trades by timer in case the favorable direction is continue to be predicted
          if(FlagBuy == True) CrossTriggered2=1;   //--> this will close sell trade when time of the holding order is expired
@@ -314,6 +316,7 @@ int start()
     //2. Predicted to Sell --> close the buy trade
 
          if(FlagSell== True) CrossTriggered2=2; //--> this will close buy trade when time of the holding order is expired
+    */  
 
 //----------TP, SL, Breakeven and Trailing Stops Variables-----------
 
@@ -361,12 +364,12 @@ int start()
 
    // TDL 2: Setting up Exit rules. Modify the ExitSignal() function to suit your needs.
 
-   if(CountPosOrders(MagicNumber,OP_BUY)>=1 && ExitSignalOnTimer(CrossTriggered2, MagicNumber, TimeMaxHold)==2)
+   if(CountPosOrders(MagicNumber,OP_BUY)>=1 && ExitSignalOnTimer(2, MagicNumber, TimeMaxHold)==2)
      { // Close Long Positions
       CloseOrderPosition(OP_BUY, OnJournaling, MagicNumber, Slippage, P, RetryInterval); 
 
      }
-   if(CountPosOrders(MagicNumber,OP_SELL)>=1 && ExitSignalOnTimer(CrossTriggered2, MagicNumber, TimeMaxHold)==1)
+   if(CountPosOrders(MagicNumber,OP_SELL)>=1 && ExitSignalOnTimer(1, MagicNumber, TimeMaxHold)==1)
      { // Close Short Positions
       CloseOrderPosition(OP_SELL, OnJournaling, MagicNumber, Slippage, P, RetryInterval);
      }
