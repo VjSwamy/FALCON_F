@@ -276,19 +276,19 @@ int start()
            }
       
          //Specifying Buy Conditions
-         else if(AIPredictionM1 == 1 && AIPriceChangePredictionM15 > entryTriggerM15 && AIPredictionH1 == 1)
+         if(AIPriceChangePredictionM15 > entryTriggerM15 && AIPredictionH1 == 1)
            {
              FlagBuy = True;
              FlagSell= False;
            }
            
          //Specifying Sell Conditions
-         else if(AIPredictionM1 == 2 && AIPriceChangePredictionM15 < -1*entryTriggerM15 && AIPredictionH1 == 2)
+         if(AIPriceChangePredictionM15 < -1*entryTriggerM15 && AIPredictionH1 == 2)
            {
              FlagBuy = False;
              FlagSell= True;
            }
-          else
+         else
             {
                FlagBuy = False;
                FlagSell = False;
