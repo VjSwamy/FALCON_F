@@ -16,7 +16,7 @@
 #property copyright "Copyright 2018, Vladimir Zhbanko"
 #property link      "lucas@blackalgotechnologies.com"
 #property link      "https://vladdsm.github.io/myblog_attempt/"
-#property version   "1.001"  
+#property version   "1.002"  
 #property strict
 /* 
 
@@ -40,6 +40,9 @@ Falcon F:
 # A. Time of the order is reached value is 1125 min
 # B. Time Exit is renewed when Exact Same Trading Entry is Suggested
 # C. When Opposite direction order is triggered
+
+Version 1.002:
+# added dashboard function to visualize predicted market behaviour from Decision Support System
 */
 
 //+------------------------------------------------------------------+
@@ -49,9 +52,10 @@ extern string  Header15="----------EA General Settings-----------";
 extern int     MagicNumber           = 8137201;
 extern int     TerminalType          = 1;         //0 mean slave, 1 mean master
 extern bool    R_Management          = true;      //R_Management true will enable Decision Support Centre (using R)
-extern int     Slippage=3; // In Pips
-extern bool    IsECNbroker = false; // Is your broker an ECN
-extern bool    OnJournaling = true; // Add EA updates in the Journal Tab
+extern int     Slippage              = 3; // In Pips
+extern bool    IsECNbroker           = false; // Is your broker an ECN
+extern bool    OnJournaling          = true; // Add EA updates in the Journal Tab
+extern bool    EnableDashboard       = True; // Turn on Dashboard
 
 extern string  Header1="----------Trading Rules Variables -----------";
 extern int     TimeMaxHold            = 1125;  //max order close time in minutes
@@ -272,14 +276,14 @@ int start()
            }
       
          //Specifying Buy Conditions
-         else if(AIPredictionM1 == TRADE_BU && AIPriceChangePredictionM15 > entryTriggerM15 && AIPredictionH1 == TRADE_BU)
+         else if(AIPredictionM1 == 1 && AIPriceChangePredictionM15 > entryTriggerM15 && AIPredictionH1 == 1)
            {
              FlagBuy = True;
              FlagSell= False;
            }
            
          //Specifying Sell Conditions
-         else if(AIPredictionM1 == TRADE_BE && AIPriceChangePredictionM15 < -1*entryTriggerM15 && AIPredictionH1 == TRADE_BE)
+         else if(AIPredictionM1 == 2 && AIPriceChangePredictionM15 < -1*entryTriggerM15 && AIPredictionH1 == 2)
            {
              FlagBuy = False;
              FlagSell= True;
@@ -423,6 +427,14 @@ int start()
    */
 
 //----
+    //adding dashboard
+    if(EnableDashboard==True) ShowDashboard("Magic Number", MagicNumber,
+                                            "Direction M1", AIPredictionM1,
+                                            "Change    M1", AIPriceChangePredictionM1,
+                                            "Direction M15", AIPredictionM15,
+                                            "Change    M15", AIPriceChangePredictionM15,
+                                            "Direction H1", AIPredictionH1,
+                                            "Change    H1", AIPriceChangePredictionH1); 
 
    return(0);
   }
@@ -471,6 +483,7 @@ Content:
 32) TriggerAndReviewHiddenVolTrailing
 33) HandleTradingEnvironment
 34) GetErrorDescription
+35) ShowDashboard
 
 */
 
@@ -2316,4 +2329,59 @@ string GetErrorDescription(int error)
   }
 //+------------------------------------------------------------------+
 //| End of ERROR DESCRIPTION                                         
+//+------------------------------------------------------------------+
+//+------------------------------------------------------------------+
+//| Dashboard - Comment Version                                    
+//+------------------------------------------------------------------+
+void ShowDashboard(string Descr0, int magic,
+                   string Descr1, int Param1,
+                   string Descr2, double Param2,
+                   string Descr3, int Param3,
+                   string Descr4, double Param4,
+                   string Descr5, int Param5,
+                   string Descr6, double Param6
+                     ) 
+  {
+// Purpose: This function creates a dashboard showing information on your EA using comments function
+// Type: Customisable 
+// Modify this function to suit your trading robot
+//----
+
+string new_line = "\n"; // "\n" or "\n\n" will move the comment to new line
+string space = ": ";    // generate space
+string underscore = "________________________________";
+
+Comment(
+        new_line 
+      + Descr0 + space + IntegerToString(magic)
+      + new_line
+      + underscore  
+      + new_line 
+      + new_line
+      + Descr1 + space + IntegerToString(Param1)
+      + new_line
+      + Descr2 + space + DoubleToString(Param2, 1)
+      + new_line        
+      + underscore  
+      + new_line 
+      + new_line
+      + Descr3 + space + IntegerToString(Param3)
+      + new_line
+      + Descr4 + space + DoubleToString(Param4, 1)
+      + new_line        
+      + underscore  
+      + new_line 
+      + new_line
+      + Descr5 + space + IntegerToString(Param5)
+      + new_line
+      + Descr6 + space + DoubleToString(Param6, 1)
+      + new_line        
+      + underscore  
+      + "");
+      
+      
+  }
+
+//+------------------------------------------------------------------+
+//| End of Dashboard - Comment Version                                     
 //+------------------------------------------------------------------+
